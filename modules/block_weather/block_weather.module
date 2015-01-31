@@ -1,0 +1,46 @@
+<?php
+
+function block_weather_block_info() {
+    $blocs['block_weather'] = array(
+        'info'  => "Block_weather",
+        'cache' => DRUPAL_NO_CACHE,
+    );
+    return $blocs;
+}
+
+function block_weather_block_view($delta = '') {
+    switch($delta){
+        case 'block_weather':
+            $weather= weather_get_weather();
+            $block['subject'] = 'Погода в Черкасах';
+            $block['content'] = '<img src="http://img.yandex.net/i/wiz' . $weather['image'] .'.png" alt="' . $weather['type'] . '" />
+        ' . ($weather['temperature'] > 0 ? '+' . $weather['temperature'] : $weather['temperature']) .'
+        ' . $weather['type'];
+            break;
+    }
+    return $block;
+}
+
+
+function weather_get_weather ($ignore_cache = FALSE) {
+    if (!$ignore_cache && ($cache = cache_get('weather'))) {
+        $weather = $cache->data;
+    }
+    else {
+        $xml = simplexml_load_file('http://export.yandex.ru/weather-ng/forecasts/33487.xml');
+        $weather = array(
+            'temperature'=> (string)$xml->fact->temperature,
+            'image'      => (string)$xml->fact->image,
+            'type'       => (string)$xml->fact->weather_type,
+        );
+        cache_set('weather', $weather);
+        variable_set('weather_update_time', REQUEST_TIME);
+    }
+
+    return $weather;
+}
+function weather_cron() {
+    if (REQUEST_TIME - variable_get('weather_update_time', 0) >= 60*60) {
+        weather_get_weather(TRUE);
+    }
+}
